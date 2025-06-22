@@ -1,9 +1,10 @@
 using ChessChallenge.API;
 
+// CRAZYHORSEBOT
 public class MyBot : IChessBot
 {
     const int d = 4;
-    static int[] v = {0,100,320,330,500,900,20000};
+    static int[] v = { 0, 100, 320, 330, 500, 900, 20000 };
 
     static int[] P = new int[64] {
          0,  0,  0,  0,  0,  0,  0,  0,
@@ -65,69 +66,69 @@ public class MyBot : IChessBot
         20, 20,  0,  0,  0,  0, 20, 20,
         20, 30, 10,  0,  0, 10, 30, 20 };
 
-    static int[][] S = { null,P,N,B,R,Q,K };
+    static int[][] S = { null, P, N, B, R, Q, K };
     Move m;
 
     public Move Think(Board board, Timer t)
     {
         m = board.GetLegalMoves()[0];
-        Search(board,d,int.MinValue+1,int.MaxValue-1);
+        Search(board, d, int.MinValue + 1, int.MaxValue - 1);
         return m;
     }
 
-    int Search(Board b,int depth,int a,int beta)
+    int Search(Board board, int depth, int alpha, int beta)
     {
-        if(depth==0||b.IsInCheckmate()||b.IsDraw())
-            return Eval(b);
+        if (depth == 0 || board.IsInCheckmate() || board.IsDraw())
+            return Eval(board);
 
-        Move[] moves = b.GetLegalMoves();
-        if(moves.Length==0)
-            return Eval(b);
+        Move[] moves = board.GetLegalMoves();
+        if (moves.Length == 0)
+            return Eval(board);
 
-        foreach(Move mv in moves)
+        foreach (Move mv in moves)
         {
-            b.MakeMove(mv);
-            int score=-Search(b,depth-1,-beta,-a);
-            b.UndoMove(mv);
+            board.MakeMove(mv);
+            int score = -Search(board, depth - 1, -beta, -alpha);
+            board.UndoMove(mv);
 
-            if(score>=beta)
+            if (score >= beta)
                 return beta;
-            if(score>a)
+            if (score > alpha)
             {
-                a=score;
-                if(depth==d)
-                    m=mv;
+                alpha = score;
+                if (depth == d)
+                    m = mv;
             }
         }
-        return a;
+        return alpha;
     }
 
-    int Eval(Board b)
+    int Eval(Board board)
     {
-        if(b.IsInCheckmate())
-            return b.IsWhiteToMove?-100000:100000;
-        if(b.IsDraw())
+        if (board.IsInCheckmate())
+            return board.IsWhiteToMove ? -100000 : 100000;
+        if (board.IsDraw())
             return 0;
-        int score=0;
-        for(int i=1;i<=6;i++)
+        int score = 0;
+        for (int i = 1; i <= 6; i++)
         {
-            foreach(var pce in b.GetPieceList((PieceType)i,true))
+            foreach (var pce in board.GetPieceList((PieceType)i, true))
             {
-                if(i<6)score+=v[i];
-                score+=S[i][pce.Square.Index];
+                if (i < 6) score += v[i];
+                score += S[i][pce.Square.Index];
             }
-            foreach(var pce in b.GetPieceList((PieceType)i,false))
+            foreach (var pce in board.GetPieceList((PieceType)i, false))
             {
-                if(i<6)score-=v[i];
-                score-=S[i][63-pce.Square.Index];
+                if (i < 6) score -= v[i];
+                score -= S[i][63 - pce.Square.Index];
             }
         }
-        b.ForceSkipTurn();
-        int opp=b.GetLegalMoves().Length;
-        b.UndoSkipTurn();
-        int me=b.GetLegalMoves().Length;
-        score+=5*(me-opp);
-        return b.IsWhiteToMove?score:-score;
+        board.ForceSkipTurn();
+        int opp = board.GetLegalMoves().Length;
+        board.UndoSkipTurn();
+        int me = board.GetLegalMoves().Length;
+        score += 5 * (me - opp);
+        return board.IsWhiteToMove ? score : -score;
     }
 
 }
