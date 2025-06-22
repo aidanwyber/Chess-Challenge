@@ -1,12 +1,11 @@
 using ChessChallenge.API;
-using System;
 
 public class MyBot : IChessBot
 {
-    const int searchDepth = 4;
-    static readonly int[] pieceValues = { 0, 100, 320, 330, 500, 900, 20000 };
+    const int d = 4;
+    static int[] v = {0,100,320,330,500,900,20000};
 
-    static readonly int[] pawnTable = new int[64] {
+    static int[] P = new int[64] {
          0,  0,  0,  0,  0,  0,  0,  0,
         50, 50, 50, 50, 50, 50, 50, 50,
         10, 10, 20, 30, 30, 20, 10, 10,
@@ -16,7 +15,7 @@ public class MyBot : IChessBot
          5, 10, 10,-20,-20, 10, 10,  5,
          0,  0,  0,  0,  0,  0,  0,  0 };
 
-    static readonly int[] knightTable = new int[64] {
+    static int[] N = new int[64] {
        -50,-40,-30,-30,-30,-30,-40,-50,
        -40,-20,  0,  0,  0,  0,-20,-40,
        -30,  0, 10, 15, 15, 10,  0,-30,
@@ -26,7 +25,7 @@ public class MyBot : IChessBot
        -40,-20,  0,  5,  5,  0,-20,-40,
        -50,-40,-30,-30,-30,-30,-40,-50 };
 
-    static readonly int[] bishopTable = new int[64] {
+    static int[] B = new int[64] {
        -20,-10,-10,-10,-10,-10,-10,-20,
        -10,  0,  0,  0,  0,  0,  0,-10,
        -10,  0,  5, 10, 10,  5,  0,-10,
@@ -36,7 +35,7 @@ public class MyBot : IChessBot
        -10,  5,  0,  0,  0,  0,  5,-10,
        -20,-10,-10,-10,-10,-10,-10,-20 };
 
-    static readonly int[] rookTable = new int[64] {
+    static int[] R = new int[64] {
          0,  0,  0,  5,  5,  0,  0,  0,
         -5,  0,  0,  0,  0,  0,  0, -5,
         -5,  0,  0,  0,  0,  0,  0, -5,
@@ -46,7 +45,7 @@ public class MyBot : IChessBot
          5, 10, 10, 10, 10, 10, 10,  5,
          0,  0,  0,  0,  0,  0,  0,  0 };
 
-    static readonly int[] queenTable = new int[64] {
+    static int[] Q = new int[64] {
        -20,-10,-10, -5, -5,-10,-10,-20,
        -10,  0,  0,  0,  0,  0,  0,-10,
        -10,  0,  5,  5,  5,  5,  0,-10,
@@ -56,7 +55,7 @@ public class MyBot : IChessBot
        -10,  0,  5,  0,  0,  0,  0,-10,
        -20,-10,-10, -5, -5,-10,-10,-20 };
 
-    static readonly int[] kingTable = new int[64] {
+    static int[] K = new int[64] {
        -30,-40,-40,-50,-50,-40,-40,-30,
        -30,-40,-40,-50,-50,-40,-40,-30,
        -30,-40,-40,-50,-50,-40,-40,-30,
@@ -66,103 +65,69 @@ public class MyBot : IChessBot
         20, 20,  0,  0,  0,  0, 20, 20,
         20, 30, 10,  0,  0, 10, 30, 20 };
 
-    static readonly int[][] pst = { null, pawnTable, knightTable, bishopTable, rookTable, queenTable, kingTable };
-    Move bestMove;
+    static int[][] S = { null,P,N,B,R,Q,K };
+    Move m;
 
-    public Move Think(Board board, Timer timer)
+    public Move Think(Board board, Timer t)
     {
-        bestMove = board.GetLegalMoves()[0];
-        AlphaBeta(board, searchDepth, int.MinValue + 1, int.MaxValue - 1);
-        return bestMove;
+        m = board.GetLegalMoves()[0];
+        Search(board,d,int.MinValue+1,int.MaxValue-1);
+        return m;
     }
 
-    int AlphaBeta(Board board, int depth, int alpha, int beta)
+    int Search(Board b,int depth,int a,int beta)
     {
-        if (depth == 0 || board.IsInCheckmate() || board.IsDraw())
-            return Evaluate(board);
+        if(depth==0||b.IsInCheckmate()||b.IsDraw())
+            return Eval(b);
 
-        Move[] moves = board.GetLegalMoves();
-        if (moves.Length == 0)
-            return Evaluate(board);
+        Move[] moves = b.GetLegalMoves();
+        if(moves.Length==0)
+            return Eval(b);
 
-        foreach (Move move in moves)
+        foreach(Move mv in moves)
         {
-            board.MakeMove(move);
-            int score = -AlphaBeta(board, depth - 1, -beta, -alpha);
-            board.UndoMove(move);
+            b.MakeMove(mv);
+            int score=-Search(b,depth-1,-beta,-a);
+            b.UndoMove(mv);
 
-            if (score >= beta)
+            if(score>=beta)
                 return beta;
-            if (score > alpha)
+            if(score>a)
             {
-                alpha = score;
-                if (depth == searchDepth)
-                    bestMove = move;
+                a=score;
+                if(depth==d)
+                    m=mv;
             }
         }
-        return alpha;
+        return a;
     }
 
-    int Evaluate(Board board)
+    int Eval(Board b)
     {
-        int eval = EvaluateForWhite(board);
-        return board.IsWhiteToMove ? eval : -eval;
-    }
-
-    int EvaluateForWhite(Board board)
-    {
-        if (board.IsInCheckmate())
-            return board.IsWhiteToMove ? -100000 : 100000;
-        if (board.IsDraw())
+        if(b.IsInCheckmate())
+            return b.IsWhiteToMove?-100000:100000;
+        if(b.IsDraw())
             return 0;
-
-        int score = 0;
-        score += EvaluateMaterial(board);
-        score += EvaluatePieceSquares(board);
-        score += 5 * EvaluateMobility(board);
-        return score;
-    }
-
-    int EvaluateMaterial(Board board)
-    {
-        int score = 0;
-        for (int i = 1; i <= 5; i++)
-            score += pieceValues[i] * board.GetPieceList((PieceType)i, true).Count;
-        for (int i = 1; i <= 5; i++)
-            score -= pieceValues[i] * board.GetPieceList((PieceType)i, false).Count;
-        return score;
-    }
-
-    int EvaluatePieceSquares(Board board)
-    {
-        int score = 0;
-        for (int i = 1; i <= 6; i++)
+        int score=0;
+        for(int i=1;i<=6;i++)
         {
-            foreach (var p in board.GetPieceList((PieceType)i, true))
-                score += pst[i][p.Square.Index];
-            foreach (var p in board.GetPieceList((PieceType)i, false))
-                score -= pst[i][63 - p.Square.Index];
+            foreach(var pce in b.GetPieceList((PieceType)i,true))
+            {
+                if(i<6)score+=v[i];
+                score+=S[i][pce.Square.Index];
+            }
+            foreach(var pce in b.GetPieceList((PieceType)i,false))
+            {
+                if(i<6)score-=v[i];
+                score-=S[i][63-pce.Square.Index];
+            }
         }
-        return score;
+        b.ForceSkipTurn();
+        int opp=b.GetLegalMoves().Length;
+        b.UndoSkipTurn();
+        int me=b.GetLegalMoves().Length;
+        score+=5*(me-opp);
+        return b.IsWhiteToMove?score:-score;
     }
 
-    int EvaluateMobility(Board board)
-    {
-        int whiteMoves, blackMoves;
-        if (board.IsWhiteToMove)
-        {
-            whiteMoves = board.GetLegalMoves().Length;
-            board.ForceSkipTurn();
-            blackMoves = board.GetLegalMoves().Length;
-            board.UndoSkipTurn();
-        }
-        else
-        {
-            blackMoves = board.GetLegalMoves().Length;
-            board.ForceSkipTurn();
-            whiteMoves = board.GetLegalMoves().Length;
-            board.UndoSkipTurn();
-        }
-        return whiteMoves - blackMoves;
-    }
 }
